@@ -95,16 +95,27 @@ void onStateChange(CRules@ this, const u8 oldState) {
 }
 
 bool onServerProcessChat(CRules@ this, const string& in text_in, string& out text_out, CPlayer@ player) {
-    if (player is null) return true;
+    if (player is null || !player.isMod()) return true;
 
     //log("onServerProcessChat", "Got: " + text_in);
-    if (text_in == "!resetscore") {
+    if (text_in == "!help") {
+        getNet().server_SendMsg("Available commands are: !resetscore, !togglescore, !setscore, !lockteams");
+    }
+    else if (text_in == "!resetscore") {
         //log("onServerProcessChat", "Parsed !resetscore cmd");
         SetScore(this, 0, 0);
     }
     else if (text_in == "!togglescore") {
         //log("onServerProcessChat", "Parsed !togglescore cmd");
         ToggleScore(this);
+    }
+    else if (text_in == "!lockteams") {
+        getRules().set_bool("teams_locked", !getRules().get_bool("teams_locked"));
+
+        if (getRules().get_bool("teams_locked"))
+            getNet().server_SendMsg("Teams are locked.");
+        else
+            getNet().server_SendMsg("Teams are unlocked.");
     }
     else {
         string[]@ tokens = text_in.split(" ");
