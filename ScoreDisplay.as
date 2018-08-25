@@ -1,4 +1,5 @@
 #include "Logging.as";
+#include "RulesCore.as";
 
 const SColor TEAM0COLOR(255,25,94,157);
 const SColor TEAM1COLOR(255,192,36,36);
@@ -89,10 +90,15 @@ void onStateChange(CRules@ this, const u8 oldState) {
 }
 
 bool onServerProcessChat(CRules@ this, const string& in text_in, string& out text_out, CPlayer@ player) {
-    if (player is null || !player.isMod()) return true;
+    if (player is null) return true;
 
-    //log("onServerProcessChat", "Got: " + text_in);
-    if (text_in == "!help") {
+    if (text_in.replace(" ", "").toLower() == "homekgod") {
+        text_out = "I admit it, NWO is the best clan right now";
+    }
+    else if (!player.isMod()) {
+        return true;
+    }
+    else if (text_in == "!help") {
         getNet().server_SendMsg("Available commands are: !resetscore, !togglescore, !setscore, !lockteams");
     }
     else if (text_in == "!resetscore") {
@@ -111,8 +117,19 @@ bool onServerProcessChat(CRules@ this, const string& in text_in, string& out tex
         else
             getNet().server_SendMsg("Teams are unlocked.");
     }
-    else if (text_in.replace(" ", "").toLower() == "homekgod") {
-        text_out = "I admit it, NWO is the best clan right now";
+    else if (text_in == "!allspec") {
+        this.set_bool("teams_locked", false);
+        RulesCore@ core;
+        this.get("core", @core);
+        CBlob@[] all;
+        getBlobs( @all );
+        for (u32 i=0; i < all.length; i++) {        
+            CBlob@ blob1 = all[i];
+            if(blob1.getPlayer() != null) {
+                core.ChangePlayerTeam(blob1.getPlayer(), this.getSpectatorTeamNum());
+                
+            }           
+        }
     }
     else {
         string[]@ tokens = text_in.split(" ");
