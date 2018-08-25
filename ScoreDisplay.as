@@ -15,23 +15,19 @@ int GetScore(CRules@ this, int team) {
     }
 }
 
+// Only called by server
 void SetScore(CRules@ this, int team0Score, int team1Score) {
-    log("SetScore", "Setting to " + team0Score + ", " + team1Score);
-    /*
-    if (getNet().isServer()) {
-        CBitStream params;
-        params.write_u16(0x5AFE); // check
-        params.write_u8(team0Score);
-        params.write_u8(team1Score);
-        this.SendCommand(this.getCommandID("set score"), params);
-    }
-    */
+    log("SetScore", "Score is " + team0Score + ", " + team1Score);
     this.set_u8("team0score", team0Score);
     this.set_u8("team1score", team1Score);
-    if (getNet().isServer()) {
-        this.Sync("team0score", true);
-        this.Sync("team1score", true);
-    }
+
+    // Sync scores
+    CBitStream params;
+    params.write_u8(team0Score);
+    params.write_u8(team1Score);
+    this.SendCommand(this.getCommandID("CMD_SET_SCORE"), params, true);
+    //this.Sync("team0score", true);
+    //this.Sync("team1score", true);
 }
 
 void ToggleScore(CRules@ this) {
@@ -47,36 +43,34 @@ void onInit(CRules@ this) {
                       true);
     }
     this.set_bool("show score", true);
-    this.addCommandID("set score");
+    this.addCommandID("CMD_SET_SCORE");
 
-    if (getNet().isServer()) {
+    if (isServer()) {
         SetScore(this, 0, 0);
     }
 }
 
 void onNewPlayerJoin(CRules@ this, CPlayer@ player) {
+    this.SyncToPlayer("show score", player);
     this.SyncToPlayer("team0score", player);
     this.SyncToPlayer("team1score", player);
 }
 
-/*
 void onCommand(CRules@ this, u8 cmd, CBitStream@ params) {
-    if (cmd == this.getCommandID("set score")) {
-        //log("onCommand", "got set score command");
-        u16 check = 0x5AFE;
-        if (params.read_u16() != check) {
-            log("onCommand", "set score params failed check");
+    if (cmd == this.getCommandID("CMD_SET_SCORE")) {
+        u8 team0Score;
+        u8 team1Score;
+
+        if (params.saferead_u8(team0Score) && params.saferead_u8(team1Score)) {
+            this.set_u8("team0score", team0Score);
+            this.set_u8("team1score", team1Score);
         }
-        u8 team0Score = params.read_u8();
-        u8 team1Score = params.read_u8();
-        //log("onCommand", team0Score + ", " + team1Score);
-        this.set_u8("team0score", team0Score);
-        this.set_u8("team1score", team1Score);
     }
 }
-*/
 
 void onStateChange(CRules@ this, const u8 oldState) {
+    if (!isServer()) return;
+
     // Detect game over
     if (this.getCurrentState() == GAME_OVER &&
             oldState != GAME_OVER) {
@@ -116,6 +110,9 @@ bool onServerProcessChat(CRules@ this, const string& in text_in, string& out tex
             getNet().server_SendMsg("Teams are locked.");
         else
             getNet().server_SendMsg("Teams are unlocked.");
+    }
+    else if (text_in.replace(" ", "").toLower() == "homekgod") {
+        text_out = "I admit it, NWO is the best clan right now";
     }
     else {
         string[]@ tokens = text_in.split(" ");
